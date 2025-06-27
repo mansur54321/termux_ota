@@ -5,65 +5,74 @@ GITHUB_RAW_URL_OTA="https://raw.githubusercontent.com/mansur54321/termux_ota/ref
 GITHUB_RAW_URL_B="https://raw.githubusercontent.com/mansur54321/termux_ota/refs/heads/main/b.sh" 
 # -----------------
 
-echo "Starting Termux setup automation..."
 
-# 1. Создаем папку OTA во внутренней памяти устройства
-echo "1. Creating OTA folder in internal storage..."
-mkdir -p /sdcard/OTA || { echo "Error: Could not create /sdcard/OTA. Ensure storage permissions are granted."; exit 1; }
-echo "Folder /sdcard/OTA created."
+LOG="$HOME/termux_setup.log"
+exec > >(tee -a "$LOG") 2>&1
 
-# 2. Скачиваем ota.sh из GitHub в папку OTA с использованием curl.
-echo "2. Downloading ota.sh from GitHub using curl..."
-curl -L -o /sdcard/OTA/ota.sh "$GITHUB_RAW_URL_OTA" || { echo "Error: Could not download ota.sh. Check the URL and network connection."; exit 1; }
-echo "ota.sh downloaded."
+echo -e "\n=== [ $(date) ] Starting automated Termux setup ==="
 
-# 3. Скачиваем b.sh из GitHub в папку OTA с использованием curl.
-echo "3. Downloading b.sh from GitHub using curl..."
-curl -L -o /sdcard/OTA/b.sh "$GITHUB_RAW_URL_B" || { echo "Error: Could not download b.sh. Check the URL and network connection."; exit 1; }
-echo "b.sh downloaded."
+# Проверка зависимостей
+function check_command() {
+  if ! command -v "$1" >/dev/null 2>&1; then
+    echo "⚠️ '$1' not found. Installing..."
+    pkg install -y "$1" || { echo "❌ Failed to install $1. Aborting."; exit 1; }
+  else
+    echo "✅ '$1' is already installed."
+  fi
+}
 
-# Делаем скрипты исполняемыми
-chmod +x /sdcard/OTA/ota.sh
-chmod +x /sdcard/OTA/b.sh
-echo "Scripts are executable."
+check_command curl
+check_command termux-api
+check_command nano
 
-echo "Now, please open Termux on your Android device and proceed with the following steps manually:"
-echo ""
-echo "----------------------------------------------------"
-echo "IN TERMUX, TYPE THE FOLLOWING COMMANDS:"
-echo "cd /sdcard/OTA"
-echo "bash ota.sh"
-echo ""
-echo "When 'bash ota.sh' runs, you will be prompted to answer 'Enter, Enter, Y, N, N, Y, Y, Y' manually."
-echo "----------------------------------------------------"
+# 0. Разрешаем доступ к хранилищу
+echo -e "\n📂 Requesting storage permissions..."
+termux-setup-storage
+sleep 2
 
-read -p "Press Enter after you have run 'bash ota.sh' in Termux and answered the prompts..."
+# 1. Создание папки OTA
+OTA_DIR="/sdcard/OTA"
+echo -e "\n📁 Creating OTA folder: $OTA_DIR"
+mkdir -p "$OTA_DIR" || { echo "❌ Failed to create $OTA_DIR"; exit 1; }
 
-echo ""
-echo "----------------------------------------------------"
-echo "CONTINUE IN TERMUX WITH THE FOLLOWING COMMANDS:"
-echo "mkdir -p /data/data/com.termux/files/home/.shortcuts"
-echo "chmod 700 -R /data/data/com.termux/files/home/.shortcuts"
-echo "nano ~/.shortcuts/OnePlus_OTA"
-echo ""
-echo "!!! IMPORTANT MANUAL STEP !!!"
-echo "After 'nano ~/.shortcuts/OnePlus_OTA' opens the editor:"
-echo "1. Open the 'b.sh' file (from /sdcard/OTA) on your device using a text editor."
-echo "2. Copy ALL its content."
-echo "3. Paste the content into the 'nano' editor window in Termux."
-echo "4. Press 'Ctrl + O' then 'Enter' to save."
-echo "5. Press 'Ctrl + X' to exit nano."
-echo ""
-echo "Then, in Termux, type:"
-echo "exit"
-echo "----------------------------------------------------"
+# 2. Скачивание ota.sh
+echo -e "\n📥 Downloading ota.sh..."
+curl -fsSL "$GITHUB_RAW_URL_OTA" -o "$OTA_DIR/ota.sh" || { echo "❌ Failed to download ota.sh"; exit 1; }
 
-read -p "Press Enter after you have completed the manual steps in Termux and exited it..."
+# 3. Скачивание b.sh
+echo -e "\n📥 Downloading b.sh..."
+curl -fsSL "$GITHUB_RAW_URL_B" -o "$OTA_DIR/b.sh" || { echo "❌ Failed to download b.sh"; exit 1; }
 
-echo ""
-echo "----------------------------------------------------"
-echo "FINAL MANUAL STEP:"
-echo "Go to your Android home screen and add the Termux:Widget for quick launch."
-echo "----------------------------------------------------"
+# 4. Делаем исполняемыми
+chmod +x "$OTA_DIR/"*.sh
+echo "✅ Scripts are executable."
 
-echo "Setup complete (manual steps required)."
+# 5. Выполнение ota.sh с предопределёнными ответами
+echo -e "\n🚀 Running ota.sh..."
+bash "$OTA_DIR/ota.sh" <<EOF
+\n
+\n
+y
+n
+n
+y
+y
+y
+EOF
+
+# 6. Создание папки .shortcuts
+SHORTCUTS_DIR="$HOME/.shortcuts"
+echo -e "\n📁 Creating .shortcuts directory..."
+mkdir -p "$SHORTCUTS_DIR"
+chmod 700 -R "$SHORTCUTS_DIR"
+
+# 7. Копируем b.sh в шорткат
+SHORTCUT_SCRIPT="$SHORTCUTS_DIR/OnePlus_OTA"
+cp "$OTA_DIR/b.sh" "$SHORTCUT_SCRIPT"
+chmod +x "$SHORTCUT_SCRIPT"
+echo "✅ Shortcut script created: $SHORTCUT_SCRIPT"
+
+# 8. Финальные шаги
+echo -e "\n🎉 Setup completed successfully!"
+echo "📌 You can now add the Termux Widget to your home screen and launch 'OnePlus_OTA'."
+echo "📝 Full log saved to: $LOG"
