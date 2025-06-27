@@ -1,9 +1,8 @@
 #!/bin/bash
 
 # --- НАСТРОЙКИ ---
-# ЗАМЕНИТЕ ЭТИ URL-АДРЕСА НА СВОИ "СЫРЫЕ" ССЫЛКИ ИЗ GITHUB
-GITHUB_RAW_URL_OTA="https://raw.githubusercontent.com/mansur54321/termux_ota/refs/heads/main/ota.sh" # Например: https://raw.githubusercontent.com/myuser/myrepo/main/ota.sh
-GITHUB_RAW_URL_B="https://raw.githubusercontent.com/mansur54321/termux_ota/refs/heads/main/b.sh"   # Например: https://raw.githubusercontent.com/myuser/myrepo/main/b.sh
+GITHUB_RAW_URL_OTA="https://raw.githubusercontent.com/mansur54321/termux_ota/refs/heads/main/ota.sh" 
+GITHUB_RAW_URL_B="https://raw.githubusercontent.com/mansur54321/termux_ota/refs/heads/main/b.sh" 
 # -----------------
 
 echo "Starting Termux setup automation..."
@@ -13,13 +12,14 @@ echo "1. Creating OTA folder in internal storage..."
 mkdir -p /sdcard/OTA || { echo "Error: Could not create /sdcard/OTA. Ensure storage permissions are granted."; exit 1; }
 echo "Folder /sdcard/OTA created."
 
-# 2. Скачиваем ota.sh и b.sh из GitHub в папку OTA.
-echo "2. Downloading ota.sh from GitHub..."
-wget -O /sdcard/OTA/ota.sh "$GITHUB_RAW_URL_OTA" || { echo "Error: Could not download ota.sh. Check the URL and network connection."; exit 1; }
+# 2. Скачиваем ota.sh из GitHub в папку OTA с использованием curl.
+echo "2. Downloading ota.sh from GitHub using curl..."
+curl -L -o /sdcard/OTA/ota.sh "$GITHUB_RAW_URL_OTA" || { echo "Error: Could not download ota.sh. Check the URL and network connection."; exit 1; }
 echo "ota.sh downloaded."
 
-echo "3. Downloading b.sh from GitHub..."
-wget -O /sdcard/OTA/b.sh "$GITHUB_RAW_URL_B" || { echo "Error: Could not download b.sh. Check the URL and network connection."; exit 1; }
+# 3. Скачиваем b.sh из GitHub в папку OTA с использованием curl.
+echo "3. Downloading b.sh from GitHub using curl..."
+curl -L -o /sdcard/OTA/b.sh "$GITHUB_RAW_URL_B" || { echo "Error: Could not download b.sh. Check the URL and network connection."; exit 1; }
 echo "b.sh downloaded."
 
 # Делаем скрипты исполняемыми
