@@ -54,7 +54,8 @@ echo -e "${GREEN}Папка $OTA_DIR готова к работе.${RESET}"
 
 # --- Шаг 2: Обновление и установка системных пакетов ---
 echo -e "\n${GREEN}>>> Шаг 2: Обновление пакетов и установка зависимостей...${RESET}"
-pkg update -y && pkg upgrade -y
+# ИСПРАВЛЕНИЕ: Добавлена опция --force-confold для автоматического обновления
+pkg update -y && pkg upgrade -y -o Dpkg::Options::="--force-confold"
 pkg install -y curl git python tsu || handle_error "Не удалось установить базовые пакеты."
 
 # Проверка установленных системных пакетов
