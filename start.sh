@@ -1,78 +1,85 @@
 #!/bin/bash
 
 # --- НАСТРОЙКИ ---
-GITHUB_RAW_URL_OTA="https://raw.githubusercontent.com/mansur54321/termux_ota/refs/heads/main/ota.sh" 
-GITHUB_RAW_URL_B="https://raw.githubusercontent.com/mansur54321/termux_ota/refs/heads/main/b.sh" 
-# -----------------
+B_SH_URL="https://raw.githubusercontent.com/mansur54321/termux_ota/refs/heads/main/b.sh" 
+# --- КОНЕЦ НАСТРОЕК ---
 
+# Цвета для красивого вывода
+GREEN="\e[32m"
+YELLOW="\e[33m"
+BLUE="\e[34m"
+RED="\e[31m"
+RESET="\e[0m"
 
-LOG="$HOME/termux_setup.log"
-exec > >(tee -a "$LOG") 2>&1
+# Целевая папка и путь к скрипту
+OTA_DIR="/storage/emulated/0/OTA"
+B_SH_PATH="$OTA_DIR/b.sh"
 
-echo -e "\n=== [ $(date) ] Starting automated Termux setup ==="
+# --- Начало скрипта ---
+clear
+echo -e "${BLUE}=====================================================${RESET}"
+echo -e "${BLUE}==  Автоматический установщик для OTA Finder  ==${RESET}"
+echo -e "${BLUE}=====================================================${RESET}"
+echo ""
+echo -e "${YELLOW}Этот скрипт автоматически скачает и настроит всё необходимое.${RESET}"
+read -p "Нажмите [Enter] для начала установки..."
 
-# Проверка зависимостей
-function check_command() {
-  if ! command -v "$1" >/dev/null 2>&1; then
-    echo "⚠️ '$1' not found. Installing..."
-    pkg install -y "$1" || { echo "❌ Failed to install $1. Aborting."; exit 1; }
-  else
-    echo "✅ '$1' is already installed."
-  fi
-}
-
-check_command curl
-check_command termux-api
-check_command nano
-
-# 0. Разрешаем доступ к хранилищу
-echo -e "\n📂 Requesting storage permissions..."
+# --- Шаг 1: Установка curl и создание папки ---
+echo -e "\n${GREEN}>>> Шаг 1: Установка 'curl' и настройка хранилища...${RESET}"
+pkg install -y curl
 termux-setup-storage
-sleep 2
+mkdir -p "$OTA_DIR"
+echo -e "${GREEN}Папка $OTA_DIR создана.${RESET}"
 
-# 1. Создание папки OTA
-OTA_DIR="/sdcard/OTA"
-echo -e "\n📁 Creating OTA folder: $OTA_DIR"
-mkdir -p "$OTA_DIR" || { echo "❌ Failed to create $OTA_DIR"; exit 1; }
+# --- Шаг 2: Загрузка основного скрипта b.sh ---
+echo -e "\n${GREEN}>>> Шаг 2: Загрузка основного скрипта (b.sh)...${RESET}"
+curl -sL "$B_SH_URL" -o "$B_SH_PATH"
 
-# 2. Скачивание ota.sh
-echo -e "\n📥 Downloading ota.sh..."
-curl -fsSL "$GITHUB_RAW_URL_OTA" -o "$OTA_DIR/ota.sh" || { echo "❌ Failed to download ota.sh"; exit 1; }
+# Проверка, что файл скачался
+if [ ! -f "$B_SH_PATH" ] || [ ! -s "$B_SH_PATH" ]; then
+    echo -e "\n${RED}ОШИБКА: Не удалось скачать скрипт b.sh!${RESET}"
+    echo -e "${YELLOW}Проверьте правильность URL в скрипте ota.sh или ваше интернет-соединение.${RESET}"
+    exit 1
+fi
+echo -e "${GREEN}Скрипт успешно загружен в $B_SH_PATH${RESET}"
 
-# 3. Скачивание b.sh
-echo -e "\n📥 Downloading b.sh..."
-curl -fsSL "$GITHUB_RAW_URL_B" -o "$OTA_DIR/b.sh" || { echo "❌ Failed to download b.sh"; exit 1; }
+# --- Шаг 3: Обновление пакетов и установка зависимостей ---
+echo -e "\n${GREEN}>>> Шаг 3: Обновление пакетов Termux...${RESET}"
+pkg update -y && pkg upgrade -y
+echo -e "\n${GREEN}>>> Шаг 4: Установка зависимостей (python, git, tsu)...${RESET}"
+pkg install -y python git tsu
 
-# 4. Делаем исполняемыми
-chmod +x "$OTA_DIR/"*.sh
-echo "✅ Scripts are executable."
+# --- Шаг 4: Установка Python-модулей ---
+echo -e "\n${GREEN}>>> Шаг 5: Установка Python-модулей (pycryptodome, requests, realme-ota)...${RESET}"
+pip install --upgrade pip wheel
+pip install --upgrade pycryptodome requests
+pip3 install --upgrade git+https://github.com/R0rt1z2/realme-ota
 
-# 5. Выполнение ota.sh с предопределёнными ответами
-echo -e "\n🚀 Running ota.sh..."
-bash "$OTA_DIR/ota.sh" <<EOF
-\n
-\n
-y
-n
-n
-y
-y
-y
-EOF
+# --- Шаг 5: Создание ярлыка ---
+echo -e "\n${GREEN}>>> Шаг 6: Создание ярлыка для виджета...${RESET}"
+SHORTCUT_DIR="$HOME/.shortcuts"
+SHORTCUT_FILE="$SHORTCUT_DIR/OnePlus_OTA"
 
-# 6. Создание папки .shortcuts
-SHORTCUTS_DIR="$HOME/.shortcuts"
-echo -e "\n📁 Creating .shortcuts directory..."
-mkdir -p "$SHORTCUTS_DIR"
-chmod 700 -R "$SHORTCUTS_DIR"
+mkdir -p "$SHORTCUT_DIR"
+chmod 700 -R "$SHORTCUT_DIR"
 
-# 7. Копируем b.sh в шорткат
-SHORTCUT_SCRIPT="$SHORTCUTS_DIR/OnePlus_OTA"
-cp "$OTA_DIR/b.sh" "$SHORTCUT_SCRIPT"
-chmod +x "$SHORTCUT_SCRIPT"
-echo "✅ Shortcut script created: $SHORTCUT_SCRIPT"
+# Создаем скрипт-запускатор, который указывает на скачанный b.sh
+echo "#!/bin/bash" > "$SHORTCUT_FILE"
+echo "bash $B_SH_PATH" >> "$SHORTCUT_FILE"
+chmod +x "$SHORTCUT_FILE"
+echo -e "${GREEN}Ярлык 'OnePlus_OTA' успешно создан.${RESET}"
 
-# 8. Финальные шаги
-echo -e "\n🎉 Setup completed successfully!"
-echo "📌 You can now add the Termux Widget to your home screen and launch 'OnePlus_OTA'."
-echo "📝 Full log saved to: $LOG"
+# --- Завершение ---
+clear
+echo -e "${GREEN}=============================================${RESET}"
+echo -e "${GREEN}      🎉 Установка успешно завершена! 🎉      ${RESET}"
+echo -e "${GREEN}=============================================${RESET}"
+echo ""
+echo -e "${YELLOW}Что делать дальше:${RESET}"
+echo "1. Полностью закройте приложение Termux (командой 'exit' или через меню)."
+echo "2. Перейдите на главный экран вашего телефона."
+echo "3. Добавьте виджет 'Termux'."
+echo "4. В списке доступных ярлыков должен появиться 'OnePlus_OTA'."
+echo "5. Нажмите на него, чтобы запустить скрипт поиска обновлений."
+echo ""
+echo -e "${BLUE}Удачи!${RESET}"
