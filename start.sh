@@ -1,14 +1,15 @@
 #!/bin/bash
 
 # ==============================================================================
-# ==   Универсальный автоматический установщик для Realme OTA (финал)        ==
+# ==   Универсальный автоматический установщик для Realme OTA (v.исправлен)  ==
 # ==============================================================================
 
 # Глобально отключаем интерактивные вопросы от установщика пакетов
 export DEBIAN_FRONTEND=noninteractive
 
 # --- НАСТРОЙКИ ---
-B_SH_URL="https://raw.githubusercontent.com/mansur54321/termux_ota/refs/heads/main/b.sh"
+# ИСПРАВЛЕНО: Указана правильная, рабочая ссылка на b.sh
+B_SH_URL="https://raw.githubusercontent.com/mansur54321/termux_ota/main/b.sh"
 DEVICES_TXT_URL="https://raw.githubusercontent.com/mansur54321/sus/refs/heads/main/devices.txt"
 # --- КОНЕЦ НАСТРОЕК ---
 
@@ -22,7 +23,7 @@ RESET="\e[0m"
 # Пути
 OTA_DIR="/storage/emulated/0/OTA"
 B_SH_PATH="$OTA_DIR/b.sh"
-DEVICES_TXT_PATH="$HOME/devices.txt" # Путь к файлу в домашней директории
+DEVICES_TXT_PATH="$HOME/devices.txt"
 REALME_OTA_BIN="/data/data/com.termux/files/usr/bin/realme-ota"
 
 # Функция для вывода ошибки и выхода
@@ -52,7 +53,7 @@ pkg upgrade -y $DPKG_OPTIONS || handle_error "Не удалось обновит
 echo -e "${GREEN}Система Termux успешно обновлена.${RESET}"
 
 # --- Шаг 2: Установка системных зависимостей ---
-echo -e "\n${GREEN}>>> Шаг 2: Установка системных пакетов (python, git, tsu)...${RESET}"
+echo -e "\n${GREEN}>>> Шаг 2: Установка системных пакетов (python, git, tsu, curl)...${RESET}"
 pkg install -y $DPKG_OPTIONS python python2 git tsu curl || handle_error "Не удалось установить системные пакеты."
 echo -e "${GREEN}Все системные пакеты установлены.${RESET}"
 
