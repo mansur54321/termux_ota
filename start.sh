@@ -9,6 +9,7 @@ export DEBIAN_FRONTEND=noninteractive
 
 # --- НАСТРОЙКИ ---
 B_SH_URL="https://raw.githubusercontent.com/mansur54321/termux_ota/refs/heads/main/b.sh"
+DEVICES_TXT_URL="https://raw.githubusercontent.com/mansur54321/sus/refs/heads/main/devices.txt"
 # --- КОНЕЦ НАСТРОЕК ---
 
 # Цвета для красивого вывода
@@ -21,6 +22,7 @@ RESET="\e[0m"
 # Пути
 OTA_DIR="/storage/emulated/0/OTA"
 B_SH_PATH="$OTA_DIR/b.sh"
+DEVICES_TXT_PATH="$HOME/devices.txt" # Путь к файлу в домашней директории
 REALME_OTA_BIN="/data/data/com.termux/files/usr/bin/realme-ota"
 
 # Функция для вывода ошибки и выхода
@@ -51,7 +53,7 @@ echo -e "${GREEN}Система Termux успешно обновлена.${RESET
 
 # --- Шаг 2: Установка системных зависимостей ---
 echo -e "\n${GREEN}>>> Шаг 2: Установка системных пакетов (python, git, tsu)...${RESET}"
-pkg install -y $DPKG_OPTIONS python python2 git tsu || handle_error "Не удалось установить системные пакеты."
+pkg install -y $DPKG_OPTIONS python python2 git tsu curl || handle_error "Не удалось установить системные пакеты."
 echo -e "${GREEN}Все системные пакеты установлены.${RESET}"
 
 # --- Шаг 3: Установка Python-модулей ---
@@ -71,14 +73,21 @@ echo -e "${GREEN}Python-модули успешно установлены и н
 # --- Шаг 4: Загрузка основного скрипта b.sh ---
 echo -e "\n${GREEN}>>> Шаг 4: Загрузка основного скрипта (b.sh)...${RESET}"
 curl -sL "$B_SH_URL" -o "$B_SH_PATH"
-# Проверка, что файл скачался и не пустой
 if [ ! -f "$B_SH_PATH" ] || [ ! -s "$B_SH_PATH" ]; then
     handle_error "Не удалось скачать скрипт b.sh! Проверьте URL и интернет-соединение."
 fi
 echo -e "${GREEN}Скрипт b.sh успешно загружен в $B_SH_PATH${RESET}"
 
-# --- Шаг 5: Создание ярлыка для виджета ---
-echo -e "\n${GREEN}>>> Шаг 5: Автоматическое создание ярлыка...${RESET}"
+# --- Шаг 5: Загрузка списка устройств ---
+echo -e "\n${GREEN}>>> Шаг 5: Загрузка списка устройств (devices.txt)...${RESET}"
+curl -sL "$DEVICES_TXT_URL" -o "$DEVICES_TXT_PATH"
+if [ ! -f "$DEVICES_TXT_PATH" ] || [ ! -s "$DEVICES_TXT_PATH" ]; then
+    handle_error "Не удалось скачать файл devices.txt! Проверьте URL и интернет-соединение."
+fi
+echo -e "${GREEN}Файл devices.txt успешно загружен в $DEVICES_TXT_PATH${RESET}"
+
+# --- Шаг 6: Создание ярлыка для виджета ---
+echo -e "\n${GREEN}>>> Шаг 6: Автоматическое создание ярлыка...${RESET}"
 SHORTCUT_DIR="$HOME/.shortcuts"
 SHORTCUT_FILE="$SHORTCUT_DIR/Realme_OTA"
 
