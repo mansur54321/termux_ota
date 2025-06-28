@@ -1,8 +1,14 @@
 #!/bin/bash
 
+# ==============================================================================
+# ==   Универсальный автоматический установщик для Realme OTA (финал)        ==
+# ==============================================================================
+
+# Глобально отключаем интерактивные вопросы от установщика пакетов
+export DEBIAN_FRONTEND=noninteractive
+
 # --- НАСТРОЙКИ ---
 B_SH_URL="https://raw.githubusercontent.com/mansur54321/termux_ota/refs/heads/main/b.sh"
-REALME_OTA_REPO_URL="https://github.com/R0rt1z2/realme-ota.git"
 # --- КОНЕЦ НАСТРОЕК ---
 
 # Цвета для красивого вывода
@@ -12,30 +18,17 @@ BLUE="\e[34m"
 RED="\e[31m"
 RESET="\e[0m"
 
-# Целевые папки и пути
+# Пути
 OTA_DIR="/storage/emulated/0/OTA"
-REALME_OTA_DIR="$OTA_DIR/realme-ota"
 B_SH_PATH="$OTA_DIR/b.sh"
-
-# --- ФУНКЦИИ ---
+REALME_OTA_BIN="/data/data/com.termux/files/usr/bin/realme-ota"
 
 # Функция для вывода ошибки и выхода
 handle_error() {
     echo -e "\n${RED}ОШИБКА: $1${RESET}"
-    echo -e "${YELLOW}Установка прервана. Пожалуйста, исправьте проблему и запустите скрипт снова.${RESET}"
+    echo -e "${YELLOW}Установка прервана.${RESET}"
     exit 1
 }
-
-# Функция для проверки наличия команды (установленного пакета)
-check_command() {
-    command -v "$1" >/dev/null 2>&1 || handle_error "Пакет '$1' не был установлен или не найден в PATH."
-}
-
-# Функция для проверки установленного Python-модуля
-check_python_module() {
-    python -c "import $1" &>/dev/null || handle_error "Python-модуль '$1' не был установлен."
-}
-
 
 # --- НАЧАЛО СКРИПТА ---
 clear
@@ -44,80 +37,62 @@ echo -e "${BLUE}==     Автоматический установщик для 
 echo -e "${BLUE}=====================================================${RESET}"
 echo ""
 echo -e "${YELLOW}Этот скрипт автоматически скачает и настроит всё необходимое.${RESET}"
-read -p "Нажмите [Enter] для начала установки..."
+read -p "Нажмите [Enter] для начала..."
 
-# --- Шаг 1: Настройка хранилища и создание папок ---
-echo -e "\n${GREEN}>>> Шаг 1: Настройка хранилища...${RESET}"
+# --- Шаг 1: Настройка хранилища и обновление пакетов ---
+echo -e "\n${GREEN}>>> Шаг 1: Настройка хранилища и обновление системы...${RESET}"
 termux-setup-storage
 mkdir -p "$OTA_DIR" || handle_error "Не удалось создать папку $OTA_DIR."
-echo -e "${GREEN}Папка $OTA_DIR готова к работе.${RESET}"
 
-# --- Шаг 2: Обновление и установка системных пакетов ---
-echo -e "\n${GREEN}>>> Шаг 2: Обновление пакетов и установка зависимостей...${RESET}"
-# ИСПРАВЛЕНИЕ: Добавлена опция --force-confold для автоматического обновления
-pkg update -y && pkg upgrade -y -o Dpkg::Options::="--force-confold"
-pkg install -y curl git python tsu || handle_error "Не удалось установить базовые пакеты."
+DPKG_OPTIONS="-o Dpkg::Options::=--force-confold"
+pkg update -y || handle_error "Не удалось обновить списки пакетов."
+pkg upgrade -y $DPKG_OPTIONS || handle_error "Не удалось обновить пакеты."
+echo -e "${GREEN}Система Termux успешно обновлена.${RESET}"
 
-# Проверка установленных системных пакетов
-echo -e "\n${BLUE}Проверка системных пакетов...${RESET}"
-check_command "curl"
-check_command "git"
-check_command "python"
-check_command "tsu"
-echo -e "${GREEN}Все системные пакеты успешно установлены.${RESET}"
+# --- Шаг 2: Установка системных зависимостей ---
+echo -e "\n${GREEN}>>> Шаг 2: Установка системных пакетов (python, git, tsu)...${RESET}"
+pkg install -y $DPKG_OPTIONS python python2 git tsu || handle_error "Не удалось установить системные пакеты."
+echo -e "${GREEN}Все системные пакеты установлены.${RESET}"
 
-# --- Шаг 3: Клонирование репозитория realme-ota ---
-echo -e "\n${GREEN}>>> Шаг 3: Загрузка утилиты realme-ota...${RESET}"
-if [ -d "$REALME_OTA_DIR" ]; then
-    echo -e "${YELLOW}Папка '$REALME_OTA_DIR' уже существует. Обновляем репозиторий...${RESET}"
-    cd "$REALME_OTA_DIR" || handle_error "Не удалось перейти в папку $REALME_OTA_DIR"
-    git pull || handle_error "Не удалось обновить репозиторий через 'git pull'."
-    cd - > /dev/null
+# --- Шаг 3: Установка Python-модулей ---
+echo -e "\n${GREEN}>>> Шаг 3: Установка Python-модулей...${RESET}"
+pip install --upgrade pip wheel pycryptodome || handle_error "Не удалось установить wheel или pycryptodome."
+pip3 install --upgrade requests pycryptodome git+https://github.com/R0rt1z2/realme-ota || handle_error "Не удалось установить realme-ota."
+
+# Проверка и исправление прав доступа
+if [ -f "$REALME_OTA_BIN" ]; then
+    echo -e "${BLUE}Назначаем права на исполнение для realme-ota...${RESET}"
+    chmod +x "$REALME_OTA_BIN"
 else
-    echo -e "${BLUE}Клонируем репозиторий из GitHub...${RESET}"
-    git clone "$REALME_OTA_REPO_URL" "$REALME_OTA_DIR" || handle_error "Не удалось клонировать репозиторий."
+    echo -e "${YELLOW}ПРЕДУПРЕЖДЕНИЕ: Не найден файл $REALME_OTA_BIN. Возможны проблемы в работе.${RESET}"
 fi
-echo -e "${GREEN}Утилита realme-ota успешно загружена в $REALME_OTA_DIR.${RESET}"
+echo -e "${GREEN}Python-модули успешно установлены и настроены.${RESET}"
 
-# --- Шаг 4: Установка Python-модулей ---
-echo -e "\n${GREEN}>>> Шаг 4: Установка Python-модулей...${RESET}"
-pip install --upgrade pip wheel
-
-# Устанавливаем зависимости
-pip install --upgrade pycryptodome requests || handle_error "Не удалось установить pycryptodome или requests."
-
-# Устанавливаем саму утилиту из локальной папки
-pip install --upgrade "$REALME_OTA_DIR" || handle_error "Не удалось установить realme-ota из локальной папки."
-
-# Проверка установленных Python-модулей
-echo -e "\n${BLUE}Проверка Python-модулей...${RESET}"
-check_python_module "Crypto" # pycryptodome импортируется как Crypto
-check_python_module "requests"
-check_python_module "realme_ota"
-echo -e "${GREEN}Все Python-модули успешно установлены.${RESET}"
-
-# --- Шаг 5: Загрузка основного скрипта b.sh ---
-echo -e "\n${GREEN}>>> Шаг 5: Загрузка основного скрипта (b.sh)...${RESET}"
+# --- Шаг 4: Загрузка основного скрипта b.sh ---
+echo -e "\n${GREEN}>>> Шаг 4: Загрузка основного скрипта (b.sh)...${RESET}"
 curl -sL "$B_SH_URL" -o "$B_SH_PATH"
+# Проверка, что файл скачался и не пустой
 if [ ! -f "$B_SH_PATH" ] || [ ! -s "$B_SH_PATH" ]; then
     handle_error "Не удалось скачать скрипт b.sh! Проверьте URL и интернет-соединение."
 fi
-echo -e "${GREEN}Скрипт успешно загружен в $B_SH_PATH${RESET}"
+echo -e "${GREEN}Скрипт b.sh успешно загружен в $B_SH_PATH${RESET}"
 
-
-# --- Шаг 6: Создание ярлыка ---
-echo -e "\n${GREEN}>>> Шаг 6: Создание ярлыка для виджета...${RESET}"
+# --- Шаг 5: Создание ярлыка для виджета ---
+echo -e "\n${GREEN}>>> Шаг 5: Автоматическое создание ярлыка...${RESET}"
 SHORTCUT_DIR="$HOME/.shortcuts"
 SHORTCUT_FILE="$SHORTCUT_DIR/Realme_OTA"
 
 mkdir -p "$SHORTCUT_DIR"
 chmod 700 -R "$SHORTCUT_DIR"
 
-# Создаем скрипт-запускатор, который указывает на скачанный b.sh
-echo "#!/bin/bash" > "$SHORTCUT_FILE"
-echo "bash $B_SH_PATH" >> "$SHORTCUT_FILE"
+echo -e "${BLUE}Создаем файл ярлыка: $SHORTCUT_FILE...${RESET}"
+{
+    echo "#!/bin/bash"
+    echo "bash $B_SH_PATH"
+} > "$SHORTCUT_FILE"
+
 chmod +x "$SHORTCUT_FILE"
-echo -e "${GREEN}Ярлык 'Realme_OTA' успешно создан.${RESET}"
+echo -e "${GREEN}Ярлык 'Realme_OTA' успешно создан!${RESET}"
 
 # --- ЗАВЕРШЕНИЕ ---
 clear
